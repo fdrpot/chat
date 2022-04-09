@@ -10,10 +10,10 @@ const WebSocket = require('ws')
 const User = require('./models/User')
 const Message = require('./models/Message')
 
-let transporter = nodemailer.createTransport({
+/*let transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: require('./gmail-auth'),
-})
+})*/
 
 const app = express()
 const MongoURI = `mongodb://localhost/chat`
@@ -164,7 +164,7 @@ app.post('/register', checkNotAuth, async (req, res) => {
         type: "success",
         text: "Вы зарегистрированы! Можете использовать свою почту и пароль для входа"
     })
-    let result = await transporter.sendMail({
+    /*let result = await transporter.sendMail({
         from: '"Chat System" <baxrev.vlad@gmail.com>',
         to: req.body.email,
         subject: 'Вы успешно зарегистрировались',
@@ -173,7 +173,7 @@ app.post('/register', checkNotAuth, async (req, res) => {
           'Вы <i>зарегистрировались</i> на <b>сайте чата</b>.',
     })
       
-    console.log(result)
+    console.log(result)*/
     return res.redirect('/login')
 })
 
