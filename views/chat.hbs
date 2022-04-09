@@ -1,0 +1,42 @@
+<div class="chat-cont">
+    <div class="msg-cont">
+        {{#each msg}}
+        <div class="chat-message">
+            <p style="color: {{sender_color}}" class="sender">{{sender}}</p>
+            <p class="text">{{text}}</p>
+        </div>
+        {{/each}}
+    </div>
+    <div class="send-cont">
+        <input id="msg-text" type="text" placeholder="Введите ваше сообщение...">
+        <button id="sendBtn">Отправить</button>
+    </div>
+</div>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script>
+    document.querySelector('.msg-cont').scrollTop = document.querySelector('.msg-cont').scrollHeight
+    document.querySelector('#sendBtn').onclick = function(){
+        axios.post(`/message/${document.querySelector('#msg-text').value}`)
+        document.querySelector('#msg-text').value = ""
+    }
+    document.querySelector('#msg-text').addEventListener('keydown', function(event) {
+        if (event.which == 13) {
+            document.querySelector('#sendBtn').click()
+        }
+    })
+    const socket = new WebSocket('ws://localhost:3001')
+    socket.addEventListener('open', () => {
+        console.log('Соединение')
+    })
+    socket.addEventListener('message', msg => {
+        let new_msg = JSON.parse(msg.data)
+        let tmp = `
+        <div class="chat-message">
+            <p style="color: ${new_msg.sender_color}" class="sender">${new_msg.sender}</p>
+            <p class="text">${new_msg.text}</p>
+        </div>
+        `
+        document.querySelector('.msg-cont').innerHTML += tmp
+        document.querySelector('.msg-cont').scrollTop = document.querySelector('.msg-cont').scrollHeight
+    })
+</script>

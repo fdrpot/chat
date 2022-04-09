@@ -1,0 +1,9 @@
+<nav>
+    <a href="/">Главная</a>
+    <a href="/chat">Чат</a>
+    {{#if user_authed}}
+    <a href="/logout">Выход</a>
+    {{else}}
+    <a href="/login">Вход</a>
+    {{/if}}
+</nav>

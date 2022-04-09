@@ -1,0 +1,10 @@
+<form action="/register" method="post">
+    <input name="last_name" type="text" placeholder="Фамилия" value="{{form_info.last_name}}">
+    <input name="first_name" type="text" placeholder="Имя" value="{{form_info.first_name}}">
+    <input name="patronymic" type="text" placeholder="Отчество" value="{{form_info.patronymic}}">
+    <input name="email" type="email" placeholder="Почта" value="{{form_info.email}}">
+    <input name="password" type="password" placeholder="Пароль">
+    <input name="password_repeat" type="password" placeholder="Повторите пароль">
+    <input name="color" type="color" value="{{form_info.color}}">
+    <input type="submit" value="Зарегистрироваться">
+</form>

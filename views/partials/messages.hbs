@@ -1,0 +1,6 @@
+{{#each messages}}
+<div class="message {{type}}">
+    <p>{{text}}</p>
+    <span onclick="this.parentNode.remove()" class="close">&times;</span>
+</div>
+{{/each}}
