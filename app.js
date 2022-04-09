@@ -242,6 +242,18 @@ app.post('/message/:text', checkAuth, async (req, res) => {
     res.end('ok')
 })
 
+app.get('/profile', checkAuth, async (req, res) => {
+    let cur_user = await User.findById(req.session.user_id)
+    let context = {
+        first_name: cur_user.first_name,
+        last_name: cur_user.last_name,
+        patronymic: cur_user.patronymic,
+        email: cur_user.email,
+        color: cur_user.color
+    }
+    res.render('profile', context)
+})
+
 server.on('connection', function(ws) {
     console.log("Подключился клиент")
 })
