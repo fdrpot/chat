@@ -209,6 +209,13 @@ app.get('/logout', checkAuth, (req, res) => {
     res.redirect('/')
 })
 
+app.get('/profile/edit', checkAuth, (req, res) => {
+    let cur_user = await User.findById(req.session.user_id)
+    let context = {}
+    context.user = cur_user
+    res.render('edit_profile')
+})
+
 app.get('/chat', checkAuth, async (req, res) => {
     let context = {}
     context.msg = []
