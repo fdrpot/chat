@@ -75,7 +75,8 @@ form input {
     flex-direction: column;
     justify-content: flex-end;
     align-items: center;
-    width: 400px;
+    width: 90%;
+    max-width: 500px;
     margin: auto;
     border-radius: 8px;
 }
@@ -150,9 +151,19 @@ form input[type=color] {
 }
 
 .btn-group {
+    margin-top: 8px;
     display: flex;
     justify-content: flex-start;
 }
 .btn-group button {
     margin-left: 5px;
+    width:fit-content;
+}
+.chat-message .text {
+    margin-left: 5px;
+    font-style: italic;
+}
+.center-flex {
+    justify-content: center;
+    align-items: center;
 }

@@ -221,6 +221,12 @@ app.get('/chat', checkAuth, async (req, res) => {
             text: message.text
         })
     }
+    let cur_user = await User.findById(req.session.user_id)
+    context.cur_user = {}
+    context.cur_user.first_name = cur_user.first_name
+    context.cur_user.last_name = cur_user.last_name
+    context.cur_user.patronymic = cur_user.patronymic
+    context.cur_user.color = cur_user.color
     res.render('chat', context)
 })
 

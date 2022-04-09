@@ -1,9 +1,9 @@
+<h1 style="color: {{cur_user.color}}; text-align: center;">{{cur_user.last_name}} {{cur_user.first_name}} {{cur_user.patronymic}}</h1>
 <div class="chat-cont">
     <div class="msg-cont">
         {{#each msg}}
         <div class="chat-message">
-            <p style="color: {{sender_color}}" class="sender">{{sender}}</p>
-            <p class="text">{{text}}</p>
+            <p><span style="color: {{sender_color}}" class="sender">{{sender}}:</span><span class="text">{{text}}</span></p>
         </div>
         {{/each}}
     </div>
@@ -12,8 +12,15 @@
         <button id="sendBtn">Отправить</button>
     </div>
 </div>
+<div class="btn-group center-flex">
+    <button onclick="changeItalic(this)" class="btn orange">Отключить курсив</button>
+</div>
 <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
 <script>
+    let settings = {
+        fontStyle: 'italic',
+        nextFontStyle: 'normal'
+    }
     document.querySelector('.msg-cont').scrollTop = document.querySelector('.msg-cont').scrollHeight
     document.querySelector('#sendBtn').onclick = function(){
         axios.post(`/message/${document.querySelector('#msg-text').value}`)
@@ -24,7 +31,7 @@
             document.querySelector('#sendBtn').click()
         }
     })
-    const socket = new WebSocket('ws://localhost:3001')
+    const socket = new WebSocket('ws://192.168.1.65:3001')
     socket.addEventListener('open', () => {
         console.log('Соединение')
     })
@@ -32,11 +39,22 @@
         let new_msg = JSON.parse(msg.data)
         let tmp = `
         <div class="chat-message">
-            <p style="color: ${new_msg.sender_color}" class="sender">${new_msg.sender}</p>
-            <p class="text">${new_msg.text}</p>
+           <p><span style="color: ${new_msg.sender_color}" class="sender">${new_msg.sender}:</span><span class="text" style="font-style:${settings.fontStyle}">${new_msg.text}</span></p>
+            
         </div>
         `
         document.querySelector('.msg-cont').innerHTML += tmp
         document.querySelector('.msg-cont').scrollTop = document.querySelector('.msg-cont').scrollHeight
     })
+    function changeItalic(btn) {
+        for (let item of document.querySelectorAll('.text')) {
+            item.style.fontStyle = settings.nextFontStyle
+        }
+        settings.nextFontStyle = [settings.fontStyle, settings.fontStyle = settings.nextFontStyle][0]
+        if (settings.nextFontStyle == 'italic') {
+            btn.innerHTML = "Включить курсив"
+        } else {
+            btn.innerHTML = "Отключить курсив"
+        }
+    }
 </script>
