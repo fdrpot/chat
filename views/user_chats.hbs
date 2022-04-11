@@ -1,0 +1,17 @@
+<div class="polar-flex">
+    <h1 style="margin: 0;">Ваши чаты</h1>
+    <img style="cursor: pointer;" src="/img/add_black_24dp.svg" onclick="document.location.href = `/chat/add`;">
+</div>
+<hr style="width: 100%">
+{{#unless isChat}}
+<h3 style="text-align: center;">У вас пока нет чатов. <a class="styled-a" href="/chat/add">Создайте</a> первый!</h3>
+{{else}}
+<div class="chats-list">
+    {{#each chats}}
+    <div class="chat-item" onclick="document.location.href = '{{link}}';">
+        <span class="name">{{name}}</span>
+        <span>Участники: {{count_of_users}}</span>
+    </div>
+    {{/each}}
+</div>
+{{/unless}}

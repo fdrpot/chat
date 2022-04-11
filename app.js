@@ -3,24 +3,31 @@ const exphbs = require('express-handlebars')
 const session = require('express-session')
 const cookieParser = require('cookie-parser')
 const nodemailer = require('nodemailer')
+const dateFormat = require('dateformat')
 const mongoose = require('mongoose')
 const MongoStore = require('connect-mongodb-session')(session)
 const WebSocket = require('ws')
 
-const User = require('./models/User')
-const Message = require('./models/Message')
+const User = require('./models/User').model
+const Message = require('./models/Message').model
+const Chat = require('./models/Chat').model
 
 /*let transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: require('./gmail-auth'),
 })*/
 
+let connected_to_server = []
+let users_to_rooms = []
+
 const app = express()
 const MongoURI = `mongodb://localhost/chat`
+const server = require('http').createServer(app)
 
 const hbs = exphbs.create({
     defaultLayout: 'main',
-    extname: 'hbs'
+    extname: 'hbs',
+    helpers: require('./handlebars-helpers').helpers
 })
 
 app.engine('hbs', hbs.engine)
@@ -35,8 +42,9 @@ const store = new MongoStore({
     uri: MongoURI
 })
 
-app.use(cookieParser());
-app.use(session({
+//app.use(cookieParser());
+
+let sessionParser = session({
     secret: require('./secret'),
     resave: false,
     saveUninitialized: true,
@@ -45,7 +53,9 @@ app.use(session({
         expires: new Date(Date.now() + 3600000),
     },
     store: store
-}))
+})
+
+app.use(sessionParser)
 
 app.use((req, res, next) => {
     if (req.session.user_id) {
@@ -91,9 +101,7 @@ function messagesToLocals(req, res, next) {
 
 app.use(messagesToLocals)
 
-const server = new WebSocket.Server({
-    port: 3001
-})
+const ws = new WebSocket.Server({server})
 
 app.get('/', (req, res) => {
     res.render('index')
@@ -103,6 +111,7 @@ app.get('/register', checkNotAuth, (req, res) => {
     let context = {}
     if (req.session.form_info) {
         context.form_info = req.session.form_info
+        delete req.session.form_info
     }
     res.render('register', context)
 })
@@ -206,17 +215,56 @@ app.post('/login', checkNotAuth, async (req, res) => {
 
 app.get('/logout', checkAuth, (req, res) => {
     delete req.session.user_id
+    req.session.messages = [
+        {
+            type: "success",
+            text: "Вы вышли из аккаунта"
+        }
+    ]
     res.redirect('/')
 })
 
-app.get('/profile/edit', checkAuth, (req, res) => {
+app.get('/profile/edit', checkAuth, async (req, res) => {
     let cur_user = await User.findById(req.session.user_id)
     let context = {}
-    context.user = cur_user
-    res.render('edit_profile')
+    context.user = {
+        last_name: cur_user.last_name,
+        first_name: cur_user.first_name,
+        patronymic: cur_user.patronymic,
+        color: cur_user.color
+    }
+    res.render('edit_profile', context)
+})
+
+app.post('/profile/edit', checkAuth, async (req, res) => {
+    let cur_user = await User.findById(req.session.user_id)
+    cur_user.last_name = req.body.last_name
+    cur_user.first_name = req.body.first_name
+    cur_user.patronymic = req.body.patronymic
+    cur_user.color = req.body.color
+    await cur_user.save()
+    req.session.messages = []
+    req.session.messages.push({
+        type: "success",
+        text: "Профиль успешно обновлён!"
+    })
+    res.redirect('/profile')
 })
 
 app.get('/chat', checkAuth, async (req, res) => {
+    let prev_chat
+    for (let user of users_to_rooms) {
+        if (String(user.user_id) == String(req.session.user_id)) {
+            prev_chat = user.chat
+            users_to_rooms.splice(users_to_rooms.indexOf(user), 1)
+        }
+    }
+   
+    users_to_rooms.push({
+        user_id: req.session.user_id,
+        chat: 'main',
+        prev_chat
+    })
     let context = {}
     context.msg = []
     let all_messages = await Message.find()
@@ -225,7 +273,9 @@ app.get('/chat', checkAuth, async (req, res) => {
         context.msg.push({
             sender: author.last_name + ' ' + author.first_name,
             sender_color: author.color,
-            text: message.text
+            text: message.text,
+            time: dateFormat(message.createdAt, "HH:MM:ss dd.mm.yyyy"),
+            is_deleted: message.is_deleted
         })
     }
     let cur_user = await User.findById(req.session.user_id)
@@ -233,6 +283,7 @@ app.get('/chat', checkAuth, async (req, res) => {
     context.cur_user.first_name = cur_user.first_name
     context.cur_user.last_name = cur_user.last_name
     context.cur_user.patronymic = cur_user.patronymic
+    context.cur_user.id = cur_user._id
     context.cur_user.color = cur_user.color
     res.render('chat', context)
 })
@@ -240,18 +291,58 @@ app.get('/chat', checkAuth, async (req, res) => {
 app.post('/message/:text', checkAuth, async (req, res) => {
     let new_message = new Message({
         sender: req.session.user_id,
-        text: req.params.text
+        text: req.params.text,
+        is_public: true
     })
     await new_message.save()
     let author = await User.findById(req.session.user_id)
-    server.clients.forEach(client => {
-        client.send(JSON.stringify({
-            type: "New message",
-            sender: author.last_name + ' ' + author.first_name,
-            sender_color: author.color,
-            text: req.params.text
-        }))
-    })
+    for (let user of users_to_rooms) {
+        if (user.chat == 'main') {
+            for (let usr of connected_to_server) {
+                if (String(usr.user_id) == String(user.user_id)) {
+                    usr.socket.send(JSON.stringify({
+                        type: "New message",
+                        sender: author.last_name + ' ' + author.first_name,
+                        sender_color: author.color,
+                        text: new_message.text.replace(/(<a href=")?((https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)))(">(.*)<\/a>)?/gi, function () {
+                            return '<a target="_blank" href="' + arguments[2] + '">' + (arguments[7] || arguments[2]) + '</a>'
+                        }),
+                        time: dateFormat(new_message.createdAt, "HH:MM:ss dd.mm.yyyy")
+                    }))
+                }
+            }
+        }
+    }
+    res.end('ok')
+})
+
+app.post('/message/:id/delete', checkAuth, async (req, res) => {
+    let req_msg = await Message.findById(req.params.id)
+    if (req_msg == undefined) {
+        return res.end('Not found')
+    }
+    if (String(req_msg.sender) != req.session.user_id) {
+        for (let client of connected_to_server) {
+            if (client.user_id == req.body.user_id) {
+                client.socket.send({
+                    type: "Message to user",
+                    text: "Вы не можете удалить чужое сообщение"
+                })
+            }
+        }
+        return res.end('Error')
+    }
+    req_msg.is_deleted = true
+    req_msg.text = "Deleted"
+    await req_msg.save()
+    for (let client of connected_to_server) {
+        if (client.user_id == req.body.user_id) {
+            client.socket.send({
+                type: "Message to user",
+                text: "Сообщение удалено"
+            })
+        }
+    }
     res.end('ok')
 })
 
@@ -267,13 +358,416 @@ app.get('/profile', checkAuth, async (req, res) => {
     res.render('profile', context)
 })
 
-server.on('connection', function(ws) {
-    console.log("Подключился клиент")
+app.get('/chat/add', checkAuth, (req, res) => {
+    let context = {}
+    if (req.session.form_info) {
+        context.form_info = req.session.form_info
+        delete req.session.form_info
+    }
+    res.render('add_chat', context)
 })
+
+app.post('/chat/add', checkAuth, async (req, res) => {
+    req.session.messages = []
+    let new_chat = new Chat({
+        name: req.body.name,
+        description: req.body.description,
+        users: [req.session.user_id],
+        admins: [req.session.user_id]
+    })
+    try {
+        await new_chat.save()
+    } catch(err) {
+        console.log(err)
+        for (let error in err.errors) {
+            let text = ``
+            if (err.errors[error].kind == 'required') {
+                text += 'Заполните поле '
+                switch(err.errors[error].path) {
+                    case "name": text += '"Название чата"'; break;
+                }
+            }
+            req.session.messages.push({
+                type: "error",
+                text: text
+            })
+
+            req.session.form_info = req.body
+        }
+        res.redirect('/chat/add')
+    }
+    req.session.messages.push({
+        type: "success",
+        text: "Чат успешно создан"
+    })
+    res.redirect('/chat/' + new_chat._id + '/view')
+})
+
+app.get('/chat/:id/edit', checkAuth, async (req, res) => {
+    let chat = await Chat.findById(req.params.id)
+    if (chat == undefined) {
+        req.session.messages = [
+            {
+                type: "error",
+                text: "Такого чата не существует"
+            }
+        ]
+        return res.redirect('/chat/list/')
+    }
+    if (chat.admins.indexOf(req.session.user_id) == -1) {
+        req.session.messages = [
+            {
+                type: "error",
+                text: "Вы не явялетесь администратором этого чата"
+            }
+        ]
+        return res.redirect('/chat/' + req.params.id + '/view')
+    }
+    let context = {
+        chat_id: chat._id,
+        chat_name: chat.name,
+        chat_description: chat.description
+    }
+    res.render('edit_chat', context)
+})
+
+app.post('/chat/:id/edit', checkAuth, async (req, res) => {
+    let chat = await Chat.findById(req.params.id)
+    if (chat == undefined) {
+        req.session.messages = [
+            {
+                type: "error",
+                text: "Такого чата не существует"
+            }
+        ]
+        return res.redirect('/chat/list/')
+    }
+    if (chat.admins.indexOf(req.session.user_id) == -1) {
+        req.session.messages = [
+            {
+                type: "error",
+                text: "Вы не явялетесь администратором этого чата"
+            }
+        ]
+        return res.redirect('/chat/' + req.params.id + '/view')
+    }
+    chat.name = req.body.name
+    chat.description = req.body.description
+    await chat.save()
+    req.session.messages = [
+        {
+            type: "success",
+            text: "Настройки сохранены"
+        }
+    ]
+    res.redirect('/chat/' + chat._id + '/view')
+})
+
+app.post('/chat/:id/add', checkAuth, async (req, res) => {
+    let chat = await Chat.findById(req.params.id)
+    if (chat == undefined) {
+        req.session.messages = [
+            {
+                type: "error",
+                text: "Такого чата не существует"
+            }
+        ]
+        return res.redirect('/chat/list/')
+    }
+    if (chat.admins.indexOf(req.session.user_id) == -1) {
+        req.session.messages = [
+            {
+                type: "error",
+                text: "Вы не явялетесь администратором этого чата"
+            }
+        ]
+        return res.redirect('/chat/' + req.params.id + '/view')
+    }
+    let add_user = await User.findOne({email: req.body.email})
+    if (add_user == undefined) {
+        req.session.messages = [
+            {
+                type: "error",
+                text: "Такого пользователя не существует"
+            }
+        ]
+        return res.redirect('/chat/' + chat._id + '/edit/')
+    }
+    if (chat.users.indexOf(add_user._id) != -1) {
+        req.session.messages = [
+            {
+                type: "error",
+                text: "Пользователь уже состоит в чате"
+            }
+        ]
+        return res.redirect('/chat/' + chat._id + '/edit/')
+    }
+    chat.users.push(add_user._id)
+    if (req.body.admin == 'on') {
+        chat.admins.push(add_user._id)
+    }
+    await chat.save()
+    req.session.messages = [
+        {
+            type: "success",
+            text: `${add_user.last_name} ${add_user.first_name} добавлен в чат. Количество участников: ${chat.users.length}`
+        }
+    ]
+    res.redirect('/chat/' + chat._id + '/edit')
+})
+
+app.get('/chat/:id/view', checkAuth, async (req, res) => {
+    let cur_chat = await Chat.findById(req.params.id)
+    if (cur_chat.users.indexOf(req.session.user_id) == -1) {
+        req.session.messages = [
+            {
+                type: "error",
+                text: "У вас нет такого чата!"
+            }
+        ]
+        return res.redirect('/chat/list')
+    }
+    let msg = await Message.find({chat: cur_chat._id})
+    let msg_lst = []
+    for (let m of msg) {
+        let sender = await User.findById(m.sender)
+        msg_lst.push({
+            sender: sender.last_name + ' ' + sender.first_name,
+            sender_color: sender.color,
+            text: m.text,
+            time: dateFormat(m.createdAt, "HH:MM")
+        })
+    }
+    let context = {
+        chat_name: cur_chat.name,
+        msg: msg_lst,
+        chat_users: cur_chat.users.length,
+        is_admin: false,
+        chat_id: cur_chat._id
+    }
+    if (cur_chat.admins.indexOf(req.session.user_id) != -1) {
+        context.is_admin = true
+    }
+    let prev_chat
+    for (let user of users_to_rooms) {
+        if (String(user.user_id) == String(req.session.user_id)) {
+            prev_chat = user.chat
+            users_to_rooms.splice(users_to_rooms.indexOf(user), 1)
+        }
+    }
+    users_to_rooms.push({
+        user_id: req.session.user_id,
+        chat: req.params.id,
+        prev_chat
+    })
+    
+    res.render('view_chat', context)
+})
+
+app.post('/chat/message/:text', async (req, res) => {
+    let chat_id
+    for (let user of users_to_rooms) {
+        if (String(user.user_id) == String(req.session.user_id)) {
+            chat_id = user.chat
+        }
+    }
+    let new_message = new Message({
+        sender: req.session.user_id,
+        text: req.params.text,
+        is_public: false,
+        chat: chat_id
+    })
+    await new_message.save()
+    let author = await User.findById(req.session.user_id)
+    for (let user of users_to_rooms) {
+        if (user.chat == chat_id) {
+            for (let usr of connected_to_server) {
+                if (String(usr.user_id) == String(user.user_id)) {
+                    usr.socket.send(JSON.stringify({
+                        type: "New message",
+                        sender: author.last_name + ' ' + author.first_name,
+                        sender_color: author.color,
+                        text: new_message.text.replace(/(<a href=")?((https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)))(">(.*)<\/a>)?/gi, function () {
+                            return '<a class="styled-a" target="_blank" href="' + arguments[2] + '">' + (arguments[7] || arguments[2]) + '</a>'
+                        }),
+                        time: dateFormat(new_message.createdAt, "HH:MM")
+                    }))
+                    break
+                }
+            }
+        }
+    }
+    res.end('ok')
+})
+
+ws.on('connection', function(socket, httpRequest) {
+    console.log("Подключился клиент")
+    sessionParser(httpRequest, {}, async function() {
+        let user_id = httpRequest.session.user_id
+        if (user_id == undefined) {
+            return socket.close()
+        }
+        connected_to_server.push({user_id, socket})
+        sendOnlineChat(user_id)
+    })
+
+    socket.on('close', function () {
+        console.log("Клиент отключился")
+        sessionParser(httpRequest, {}, function() {
+            let user_id = httpRequest.session.user_id
+            if (user_id == undefined) {
+                return socket.close()
+            }
+            for (let user of connected_to_server) {
+                if (String(user.user_id) == String(user_id)) {
+                    connected_to_server.splice(connected_to_server.indexOf(user), 1)
+                }
+            }
+            /*for (let user of users_to_rooms) {
+                if (String(user.user_id) == String(user_id)) {
+                    users_to_rooms.splice(users_to_rooms.indexOf(user), 1)
+                }
+            }*/
+            sendOnlineChat(user_id)
+        })
+    })
+})
+
+app.get('/chat/list', checkAuth, async (req, res) => {
+    let context = {}
+    context.chats = []
+    let chats = await Chat.find()
+    for (let chat of chats) {
+        if (chat.users.indexOf(req.session.user_id) != -1) {
+            context.chats.push({
+                name: chat.name,
+                count_of_users: chat.users.length,
+                link: `/chat/${chat._id}/view`
+            })
+        }
+    }
+    if (context.chats.length != 0) {
+        context.isChat = true
+    }
+    res.render('user_chats', context)
+})
+
+async function sendOnlineChat(user_id) {
+    let online_users = []
+    let prev_online_users = []
+    let cur_user
+    
+    for (let user of users_to_rooms) {
+        if (String(user.user_id) == String(user_id)) {
+            cur_user = user
+        }
+    }
+    if (cur_user.prev_chat == 'main') {
+        sendOnline()
+    }
+    for (let user of users_to_rooms) {
+        if (String(user.chat) == String(cur_user.prev_chat)) {
+            for (let usr of connected_to_server) {
+                if (String(usr.user_id) == String(user.user_id)) {
+                    let src_user = await User.findById(user.user_id)
+                    let snd_user = {}
+                    snd_user.first_name = src_user.first_name
+                    snd_user.last_name = src_user.last_name
+                    snd_user.color = src_user.color
+                    prev_online_users.push(snd_user)
+                }
+            }
+        }
+    }
+
+    for (let user of users_to_rooms) {
+        if (String(user.chat) == String(cur_user.prev_chat)) {
+            for (let usr of connected_to_server) {
+                if (String(user.user_id) == String(usr.user_id)) {
+                    usr.socket.send(JSON.stringify({
+                        type: "Count of users",
+                        count_of_users: (await Chat.findById(cur_user.chat)).users.length,
+                        prev_online_users
+                    }))
+                    break
+                }
+            }
+        }
+    }
+
+    if (cur_user.chat == 'main') {
+        return sendOnline()
+    }
+
+    for (let user of users_to_rooms) {
+        if (String(user.chat) == String(cur_user.chat)) {
+            for (let usr of connected_to_server) {
+                if (String(usr.user_id) == String(user.user_id)) {
+                    let src_user = await User.findById(user.user_id)
+                    let snd_user = {}
+                    snd_user.first_name = src_user.first_name
+                    snd_user.last_name = src_user.last_name
+                    snd_user.color = src_user.color
+                    online_users.push(snd_user)
+                }
+            }
+        }
+    }
+
+    
+
+    
+    for (let user of users_to_rooms) {
+        if (String(user.chat) == String(cur_user.chat)) {
+            for (let usr of connected_to_server) {
+                if (String(user.user_id) == String(usr.user_id)) {
+                    usr.socket.send(JSON.stringify({
+                        type: "Count of users",
+                        count_of_users: (await Chat.findById(cur_user.chat)).users.length,
+                        online_users
+                    }))
+                    break
+                }
+            }
+        }
+    }
+
+    
+}
+
+async function sendOnline() {
+    let users_online = []
+    for (let client of connected_to_server) {
+        let user = await User.findById(client.user_id)
+        if (user == undefined) {
+            for (let user2 of connected_to_server) {
+                if (String(user2.user_id) == String(user.id)) {
+                    connected_to_server.splice(connected_to_server.indexOf(user2), 1)
+                }
+            }
+            continue
+        }
+        for (let usr of users_to_rooms) {
+            if (String(usr.user_id) == String(user.id) && usr.chat == 'main') {
+                users_online.push({
+                    last_name: user.last_name,
+                    first_name: user.first_name,
+                    color: user.color
+                })
+            }
+        }
+    }
+    ws.clients.forEach(client => {
+        client.send(JSON.stringify({
+            type: "Online list",
+            users: users_online
+        }))
+    })
+}
 
 mongoose.connect(MongoURI, () => {
     console.log('Соединение с MongoDB установлено')
-    app.listen(3000, () => {
+    server.listen(3000, () => {
         console.log('Сервер запущен на 3000 порту')
     })
 })

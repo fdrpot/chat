@@ -75,7 +75,7 @@ form input {
     flex-direction: column;
     justify-content: flex-end;
     align-items: center;
-    width: 90%;
+    width: 95%;
     max-width: 500px;
     margin: auto;
     border-radius: 8px;
@@ -162,8 +162,157 @@ form input[type=color] {
 .chat-message .text {
     margin-left: 5px;
     font-style: italic;
+    word-break: break-word;
+}
+.chat-message .text a {
+    color:rgb(2, 2, 163);
+    font-weight: 600;
+}
+.chat-message .text a:hover {
+    color: rgb(0, 0, 117);
+    text-decoration: underline;
+}
+.chat-message .sender {
+    white-space: nowrap;
 }
 .center-flex {
     justify-content: center;
     align-items: center;
+}
+.chat-message .time {
+    white-space: nowrap;
+    text-decoration: underline;
+}
+.flex-row {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+.online-list {
+    display: flex;
+    flex-direction: column;
+    background-color: rgb(213, 255, 179);
+    padding: 8px 25px;
+    border-radius: 7px;
+    border: 2px dashed darkgreen;
+}
+.online-list p {
+    margin: 5px;
+    font-weight: 600;
+}
+#onl-lst {
+    height: 200px;
+    overflow-y: scroll;
+    padding: 8px 15px;
+    text-align: center;
+    border: none;
+}
+#onl-lst::-webkit-scrollbar {
+    display: none;
+}
+@media(max-width: 775px) {
+    #chatCont {
+        flex-direction: column-reverse;
+    }
+}
+.no-margin {
+    margin: 0;
+}
+.chat-item {
+    padding: 10px 20px;
+    border-radius: 7px;
+    background-color: rgb(208, 208, 255);
+    border: 1px solid blue;
+    margin-bottom: 7px;
+    display: flex;
+    justify-content: space-between;
+    cursor: pointer;
+}
+.polar-flex {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.chat-full {
+    width: 100%;
+    border: 1px dashed black;
+    border-radius: 5px;
+}
+.status-bar {
+    background-color:rgb(213, 255, 179);
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px double black;
+}
+.status-bar img {
+    cursor: pointer;
+}
+.msg-full {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-direction: column;
+    padding: 20px 0;
+    overflow-y: scroll;
+    max-height: 500px;
+}
+.msg-full .msg {
+    background-color: rgb(200, 255, 237);
+    border-radius: 9px;
+    padding: 15px 25px;
+    width: 80%;
+    margin-bottom: 5px;
+    flex: 1;
+}
+.msg-full .msg .msg-time {
+    margin-left: 4px;
+    font-size: 15px;
+    color: rgb(104, 104, 104);
+}
+.msg-full .msg .msg-sender {
+    font-weight: 600;
+}
+.msg-full .msg .msg-text {
+    margin: 5px 0;
+}
+.msg-full .msg .msg-info {
+    margin: 7px 0;
+}
+.send-msg {
+    background-color: rgb(255, 254, 177);
+    padding:10px 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.send-msg input[type="text"] {
+    padding: 10px 15px;
+    border-radius: 8px;
+    width: 80%;
+    border: none;
+}
+.send-msg button {
+    margin-left: 5px;
+    padding: 10px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    background-color: rgb(74, 234, 255);
+    border: none;
+    font-weight: 600;
+}
+.send-msg button:active {
+    transform: scale(0.9);
+}
+.row-cont {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+}
+form label {
+    padding: 7px 20px;
+    padding-left: 0;
+    margin-bottom: 5px;
+    font-size: 14px;
 }

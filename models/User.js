@@ -47,4 +47,7 @@ UserSchema.methods.comparePassword = function(passForCheck, cb) {
     })
 }
 
-module.exports = model('User', UserSchema)
+module.exports = {
+    model: model('User', UserSchema),
+    shema: UserSchema
+}

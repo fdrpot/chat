@@ -1,0 +1,7 @@
+<h1 style="margin: 0;">Создание чата</h1>
+<hr style="width: 100%">
+<form action="/chat/add" method="post">
+    <input name="name" type="text" placeholder="Название чата" value={{form_info.name}}>
+    <input name="description" type="text" placeholder="Описание чата (необязательно)" value="{{form_info.description}}">
+    <input type="submit" value="Создать">
+</form>

@@ -1,19 +1,34 @@
 <h1 style="color: {{cur_user.color}}; text-align: center;">{{cur_user.last_name}} {{cur_user.first_name}} {{cur_user.patronymic}}</h1>
-<div class="chat-cont">
-    <div class="msg-cont">
-        {{#each msg}}
-        <div class="chat-message">
-            <p><span style="color: {{sender_color}}" class="sender">{{sender}}:</span><span class="text">{{text}}</span></p>
+<div id="chatCont" class="flex-row">
+    <div class="online-list">
+        <h3>Список людей в сети:</h3>
+        <div class="online-list" id="onl-lst">
+
         </div>
-        {{/each}}
     </div>
-    <div class="send-cont">
-        <input id="msg-text" type="text" placeholder="Введите ваше сообщение...">
-        <button id="sendBtn">Отправить</button>
+    <div class="container no-margin">
+        <div class="chat-cont">
+            <div class="msg-cont">
+                {{#each msg}}
+                <div class="chat-message">
+                    {{#unless is_deleted}}
+                    <p><span style="color: {{sender_color}}" class="sender">{{sender}}</span> <span class="time">({{time}})</span>:<span class="text">{{format_link text}}</span></p>
+                    {{else}}
+                    <p><span style="color: {{sender_color}}" class="sender">{{sender}}</span>:<span class="text">Сообщение удалено</span></p>
+                    {{/unless}}
+                </div>
+                {{/each}}
+            </div>
+            <div class="send-cont">
+                <input id="msg-text" type="text" placeholder="Введите ваше сообщение...">
+                <button id="sendBtn">Отправить</button>
+            </div>
+        </div>
+        
+        <div class="btn-group center-flex">
+            <button onclick="changeItalic(this)" class="btn orange">Отключить курсив</button>
+        </div>
     </div>
-</div>
-<div class="btn-group center-flex">
-    <button onclick="changeItalic(this)" class="btn orange">Отключить курсив</button>
 </div>
 <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
 <script>
@@ -23,7 +38,7 @@
     }
     document.querySelector('.msg-cont').scrollTop = document.querySelector('.msg-cont').scrollHeight
     document.querySelector('#sendBtn').onclick = function(){
-        axios.post(`/message/${document.querySelector('#msg-text').value}`)
+        axios.post(`/message/${encodeURIComponent(document.querySelector('#msg-text').value)}`)
         document.querySelector('#msg-text').value = ""
     }
     document.querySelector('#msg-text').addEventListener('keydown', function(event) {
@@ -31,20 +46,32 @@
             document.querySelector('#sendBtn').click()
         }
     })
-    const socket = new WebSocket('ws://192.168.1.65:3001')
+    const socket = new WebSocket('ws://192.168.1.65:3000')
     socket.addEventListener('open', () => {
         console.log('Соединение')
     })
     socket.addEventListener('message', msg => {
         let new_msg = JSON.parse(msg.data)
-        let tmp = `
-        <div class="chat-message">
-           <p><span style="color: ${new_msg.sender_color}" class="sender">${new_msg.sender}:</span><span class="text" style="font-style:${settings.fontStyle}">${new_msg.text}</span></p>
-            
-        </div>
-        `
-        document.querySelector('.msg-cont').innerHTML += tmp
-        document.querySelector('.msg-cont').scrollTop = document.querySelector('.msg-cont').scrollHeight
+        if (new_msg.type == "New message") {
+            let tmp = `
+            <div class="chat-message">
+            <p><span style="color: ${new_msg.sender_color}" class="sender">${new_msg.sender}</span> <span class="time">(${new_msg.time})</span>:<span class="text" style="font-style:${settings.fontStyle}">${new_msg.text}</span></p>
+                
+            </div>
+            `
+            document.querySelector('.msg-cont').innerHTML += tmp
+            document.querySelector('.msg-cont').scrollTop = document.querySelector('.msg-cont').scrollHeight
+        } else if (new_msg.type == "Online list") {
+            let users_list = new_msg.users
+            let big_tmp = ''
+            for (let user of users_list) {
+                let tmp = `
+                <p style="color: ${user.color}">${user.last_name} ${user.first_name}</p>
+                `
+                big_tmp += tmp
+            }
+            document.querySelector('#onl-lst').innerHTML = big_tmp
+        }
     })
     function changeItalic(btn) {
         for (let item of document.querySelectorAll('.text')) {
@@ -56,5 +83,6 @@
         } else {
             btn.innerHTML = "Отключить курсив"
         }
+        document.querySelector('.msg-cont').scrollTop = document.querySelector('.msg-cont').scrollHeight
     }
 </script>

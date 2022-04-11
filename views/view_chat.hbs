@@ -1,0 +1,50 @@
+<h1 style="margin: 0;">{{chat_name}}</h1>
+<hr style="width: 100%">
+<div class="chat-full">
+    <div class="status-bar">
+        <span>Участники: {{chat_users}}</span>
+        {{#if is_admin}}
+        <img src="/img/settings_black_24dp.svg" onclick="document.location.href = `/chat/{{chat_id}}/edit`;">
+        {{/if}}
+    </div>
+    <div class="msg-full">
+        {{#each msg}}
+        <div class="msg">
+            <p class="msg-info"><span style="color: {{sender_color}}" class="msg-sender">{{sender}}</span><span class="msg-time">{{time}}</span></p><p class="msg-text">{{format_link text}}</p>
+        </div>
+        {{/each}}
+    </div>
+    <div class="send-msg">
+        <input id="msgTXT" type="text" placeholder="Ваше сообщение">
+        <button id="sendBTN" onclick="sendMsg()">Отправить</button>
+    </div>
+</div>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script>
+    document.querySelector('.msg-full').scrollTop = document.querySelector('.msg-full').scrollHeight
+    const socket = new WebSocket('ws://192.168.1.65:3000')
+    socket.addEventListener('message', msg => {
+        let data_msg = JSON.parse(msg.data)
+        console.log(data_msg)
+        if (data_msg.type == "Count of users") {
+            document.querySelector('.status-bar span').innerHTML = `Участники: ${data_msg.count_of_users} (онлайн: ${data_msg.online_users.length})`
+        } else if (data_msg.type == "New message") {
+            let tmp = `
+            <div class="msg">
+                <p class="msg-info"><span style="color: ${data_msg.sender_color}" class="msg-sender">${data_msg.sender}</span><span class="msg-time">${data_msg.time}</span></p><p class="msg-text">${data_msg.text}</p>
+            </div>
+            `
+            document.querySelector('.msg-full').innerHTML += tmp
+            document.querySelector('.msg-full').scrollTop = document.querySelector('.msg-full').scrollHeight
+        }
+    })
+    function sendMsg() {
+        axios.post(`/chat/message/${encodeURIComponent(document.querySelector('#msgTXT').value)}`)
+        document.querySelector('#msgTXT').value = ""
+    }
+    document.querySelector('#msgTXT').addEventListener('keydown', function(event) {
+        if (event.which == 13) {
+            document.querySelector('#sendBTN').click()
+        }
+    })
+</script>

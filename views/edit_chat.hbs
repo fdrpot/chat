@@ -1,0 +1,16 @@
+<h1 style="margin: 0;">Настройки чата "{{chat_name}}"</h1>
+<hr style="width: 100%">
+<div class="row-cont">
+    <form style="border-right: 1px solid grey; padding-right: 10px; width: 70%;" action="/chat/{{chat_id}}/edit" method="post">
+        <h4 style="text-align: center;">Информация о чате</h4>
+        <input name="name" type="text" placeholder="Название чата" value="{{chat_name}}">
+        <input name="description" type="text" placeholder="Описание чата (необязательно)" value="{{chat_description}}">
+        <input type="submit" value="Сохранить">
+    </form>
+    <form style="padding-left: 10px; width: 30%" action="/chat/{{chat_id}}/add" method="post">
+        <h4 style="text-align: center;">Добавление нового участника</h4>
+        <input name="email" type="email" placeholder="Почта">
+        <label><input name="admin" type="checkbox">Администратор</label>
+        <input type="submit" value="Добавить">
+    </form>
+</div>
