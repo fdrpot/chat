@@ -21,7 +21,7 @@ let connected_to_server = []
 let users_to_rooms = []
 
 const app = express()
-const MongoURI = `mongodb://localhost/chat`
+const MongoURI =  process.env.MONGODB_URI || `mongodb://localhost/chat`
 const server = require('http').createServer(app)
 
 const hbs = exphbs.create({
@@ -45,7 +45,7 @@ const store = new MongoStore({
 //app.use(cookieParser());
 
 let sessionParser = session({
-    secret: require('./secret'),
+    secret: process.env.SECRET_KEY_SESSIONS || require('./secret'),
     resave: false,
     saveUninitialized: true,
     cookie: {
