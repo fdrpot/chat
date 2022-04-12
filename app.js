@@ -192,6 +192,13 @@ app.get('/login', checkNotAuth, (req, res) => {
 app.post('/login', checkNotAuth, async (req, res) => {
     req.session.messages = []
     let user = await User.findOne({email: req.body.email})
+    if (user == null) {
+        req.session.messages.push({
+            type: "error",
+            text: `Невозможно войти с предоставленными учетными данными`
+        })
+        return res.redirect('/login')
+    }
     user.comparePassword(req.body.password, function(err, isMatch) {
         if (err) return console.log(err)
         if (isMatch) {
