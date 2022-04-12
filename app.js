@@ -816,7 +816,7 @@ async function sendEmailForActivate(user_id) {
             subject: 'Вы успешно зарегистрировались',
             text: 'Вы зарегистрировались на сайте чата. Для активации аккаунта перейдите по ссылке',
             html:
-            `<h1 style="text-align: center">Поздравляем!</h1><p style="text-align: center;">Вы <i>зарегистрировались</i> на <b>сайте чата</b>. Для активации аккаунта перейдите по ссылке: </p><a href="${process.env.HEROKU_URL || '192.168.1.65:5000/'}profile/activate/${user.activate_link}" style="color: #333333; font: 10px Arial, sans-serif; line-height: 30px; -webkit-text-size-adjust:none; display: block;" target="_blank">${process.env.HEROKU_URL || '192.168.1.65:5000'}/profile/activate/${user.activate_link}</a>`,
+            `<h1 style="text-align: center">Поздравляем!</h1><p style="text-align: center;">Вы <i>зарегистрировались</i> на <b>сайте чата</b>. Для активации аккаунта перейдите по ссылке: </p><a href="${process.env.HEROKU_URL || '192.168.1.65:5000/'}profile/activate/${user.activate_link}" style="color: #333333; font: 10px Arial, sans-serif; line-height: 30px; -webkit-text-size-adjust:none; display: block;" target="_blank">${process.env.HEROKU_URL || '192.168.1.65:5000/'}profile/activate/${user.activate_link}</a>`,
         })
     } catch (err) {
         return console.log(err)
