@@ -281,7 +281,7 @@ app.get('/chat', checkAuth, async (req, res) => {
     })
     let context = {}
     context.msg = []
-    let all_messages = await Message.find({chat: 'main'})
+    let all_messages = await Message.find({chat: undefined})
     for (let message of all_messages) {
         let author = await User.findById(message.sender)
         context.msg.push({
