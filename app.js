@@ -767,7 +767,7 @@ async function sendOnline() {
 
 mongoose.connect(MongoURI, () => {
     console.log('Соединение с MongoDB установлено')
-    server.listen(3000, () => {
+    server.listen(process.env.PORT || 3000, () => {
         console.log('Сервер запущен на 3000 порту')
     })
 })
