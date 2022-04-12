@@ -46,7 +46,7 @@
             document.querySelector('#sendBtn').click()
         }
     })
-    const socket = new WebSocket(window.location.href)
+    const socket = new WebSocket('ws://' + window.location.host + ':' + window.location.port)
     socket.addEventListener('open', () => {
         console.log('Соединение')
     })

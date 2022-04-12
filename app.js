@@ -568,7 +568,6 @@ app.get('/chat/:id/view', checkAuth, async (req, res) => {
         chat_users: cur_chat.users.length,
         is_admin: false,
         chat_id: cur_chat._id,
-        socket_url: 'ws' + process.env.HEROKU_URL.replace('https', "")
     }
     if (cur_chat.admins.indexOf(req.session.user_id) != -1) {
         context.is_admin = true
