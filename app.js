@@ -688,32 +688,33 @@ async function sendOnlineChat(user_id) {
     }
     if (cur_user.prev_chat == 'main') {
         sendOnline()
-    }
-    for (let user of users_to_rooms) {
-        if (String(user.chat) == String(cur_user.prev_chat)) {
-            for (let usr of connected_to_server) {
-                if (String(usr.user_id) == String(user.user_id)) {
-                    let src_user = await User.findById(user.user_id)
-                    let snd_user = {}
-                    snd_user.first_name = src_user.first_name
-                    snd_user.last_name = src_user.last_name
-                    snd_user.color = src_user.color
-                    prev_online_users.push(snd_user)
+    } else {
+        for (let user of users_to_rooms) {
+            if (String(user.chat) == String(cur_user.prev_chat)) {
+                for (let usr of connected_to_server) {
+                    if (String(usr.user_id) == String(user.user_id)) {
+                        let src_user = await User.findById(user.user_id)
+                        let snd_user = {}
+                        snd_user.first_name = src_user.first_name
+                        snd_user.last_name = src_user.last_name
+                        snd_user.color = src_user.color
+                        prev_online_users.push(snd_user)
+                    }
                 }
             }
         }
-    }
 
-    for (let user of users_to_rooms) {
-        if (String(user.chat) == String(cur_user.prev_chat)) {
-            for (let usr of connected_to_server) {
-                if (String(user.user_id) == String(usr.user_id)) {
-                    usr.socket.send(JSON.stringify({
-                        type: "Count of users",
-                        count_of_users: (await Chat.findById(cur_user.chat)).users.length,
-                        prev_online_users
-                    }))
-                    break
+        for (let user of users_to_rooms) {
+            if (String(user.chat) == String(cur_user.prev_chat)) {
+                for (let usr of connected_to_server) {
+                    if (String(user.user_id) == String(usr.user_id)) {
+                        usr.socket.send(JSON.stringify({
+                            type: "Count of users",
+                            count_of_users: (await Chat.findById(cur_user.prev_chat)).users.length,
+                            prev_online_users
+                        }))
+                        break
+                    }
                 }
             }
         }
