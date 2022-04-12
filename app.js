@@ -12,10 +12,13 @@ const User = require('./models/User').model
 const Message = require('./models/Message').model
 const Chat = require('./models/Chat').model
 
-/*let transporter = nodemailer.createTransport({
+let transporter = nodemailer.createTransport({
     service: 'gmail',
-    auth: require('./gmail-auth'),
-})*/
+    auth: {
+        user: process.env.GMAIL_USER || require('./gmail-auth').user,
+        pass: process.env.GMAIL_PASS || require('./gmail-auth').pass
+    },
+})
 
 let connected_to_server = []
 let users_to_rooms = []
@@ -173,7 +176,7 @@ app.post('/register', checkNotAuth, async (req, res) => {
         type: "success",
         text: "Вы зарегистрированы! Можете использовать свою почту и пароль для входа"
     })
-    /*let result = await transporter.sendMail({
+    let result = await transporter.sendMail({
         from: '"Chat System" <baxrev.vlad@gmail.com>',
         to: req.body.email,
         subject: 'Вы успешно зарегистрировались',
@@ -182,7 +185,7 @@ app.post('/register', checkNotAuth, async (req, res) => {
           'Вы <i>зарегистрировались</i> на <b>сайте чата</b>.',
     })
       
-    console.log(result)*/
+    console.log(result)
     return res.redirect('/login')
 })
 
