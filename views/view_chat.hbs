@@ -22,7 +22,7 @@
 <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
 <script>
     document.querySelector('.msg-full').scrollTop = document.querySelector('.msg-full').scrollHeight
-    const socket = new WebSocket('ws://192.168.1.65:3000')
+    const socket = new WebSocket({{socket_url}})
     socket.addEventListener('message', msg => {
         let data_msg = JSON.parse(msg.data)
         console.log(data_msg)

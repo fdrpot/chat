@@ -67,7 +67,7 @@ app.use((req, res, next) => {
     next()
 })
 
-function checkAuth(req, res, next) {
+async function checkAuth(req, res, next) {
     if (req.session.user_id) {
         next()
     } else {
@@ -172,20 +172,15 @@ app.post('/register', checkNotAuth, async (req, res) => {
         }
         return res.redirect('/register')
     }
+
+    sendEmailForActivate(new_user._id)
+
     req.session.messages.push({
         type: "success",
-        text: "Вы зарегистрированы! Можете использовать свою почту и пароль для входа"
+        text: "Вы зарегистрированы! Активируйте свой аккаунт, перейдя по ссылке, которую мы вам отправили на почту"
     })
-    let result = await transporter.sendMail({
-        from: '"Chat System" <baxrev.vlad@gmail.com>',
-        to: req.body.email,
-        subject: 'Вы успешно зарегистрировались',
-        text: 'Вы зарегистрировались на сайте чата.',
-        html:
-          'Вы <i>зарегистрировались</i> на <b>сайте чата</b>.',
-    })
+    
       
-    console.log(result)
     return res.redirect('/login')
 })
 
@@ -200,6 +195,15 @@ app.post('/login', checkNotAuth, async (req, res) => {
     user.comparePassword(req.body.password, function(err, isMatch) {
         if (err) return console.log(err)
         if (isMatch) {
+            if (!user.is_active) {
+                req.session.messages = [
+                    {
+                        type: "error",
+                        text: "Проверьте почту и активируйте свой аккаунт"
+                    }
+                ]
+                return res.redirect('/login')
+            }
             req.session.user_id = user._id
             req.session.messages.push({
                 type: "success",
@@ -359,6 +363,23 @@ app.get('/profile', checkAuth, async (req, res) => {
         color: cur_user.color
     }
     res.render('profile', context)
+})
+
+app.get('/profile/activate/:key_link', async (req, res) => {
+    let find_usr = await User.findOne({activate_link: req.params.key_link})
+    if (find_usr == undefined) {
+        return res.end('Not found')
+    }
+    find_usr.is_active = true
+    find_usr.activate_link = ""
+    find_usr.save()
+    let context = {
+        first_name: find_usr.first_name,
+        last_name: find_usr.last_name,
+        patronymic: find_usr.patronymic,
+        email: find_usr.email
+    }
+    res.render('activate_email', context)
 })
 
 app.get('/chat/add', checkAuth, (req, res) => {
@@ -546,7 +567,8 @@ app.get('/chat/:id/view', checkAuth, async (req, res) => {
         msg: msg_lst,
         chat_users: cur_chat.users.length,
         is_admin: false,
-        chat_id: cur_chat._id
+        chat_id: cur_chat._id,
+        socket_url: process.env.HEROKU_URL
     }
     if (cur_chat.admins.indexOf(req.session.user_id) != -1) {
         context.is_admin = true
@@ -770,7 +792,26 @@ async function sendOnline() {
 
 mongoose.connect(MongoURI, () => {
     console.log('Соединение с MongoDB установлено')
-    server.listen(process.env.PORT || 3000, () => {
-        console.log('Сервер запущен на 3000 порту')
+    listener = server.listen(process.env.PORT || 3000, () => {
+        console.log(`Сервер запущен на ${String(server.address().address)}`)
     })
 })
+
+async function sendEmailForActivate(user_id) {
+    let user = await User.findById(user_id)
+    if (user.is_active) {
+        return console.log("Попытка отправить письмо для активации пользователю с уже подтвержденным email!")
+    }
+    try {
+        await transporter.sendMail({
+            from: `"Chat System" <${process.env.GMAIL_USER || 'baxrev.vlad@gmail.com'}>`,
+            to: user.email,
+            subject: 'Вы успешно зарегистрировались',
+            text: 'Вы зарегистрировались на сайте чата. Для активации аккаунта перейдите по ссылке',
+            html:
+            `<h1 style="text-align: center">Поздравляем!</h1><p style="text-align: center;">Вы <i>зарегистрировались</i> на <b>сайте чата</b>. Для активации аккаунта перейдите по ссылке: </p><a href="${process.env.HEROKU_URL || '192.168.1.65:5000'}/profile/activate/${user.activate_link}" style="color: #333333; font: 10px Arial, sans-serif; line-height: 30px; -webkit-text-size-adjust:none; display: block;" target="_blank">${process.env.HEROKU_URL || '192.168.1.65:5000'}/profile/activate/${user.activate_link}</a>`,
+        })
+    } catch (err) {
+        return console.log(err)
+    }
+}

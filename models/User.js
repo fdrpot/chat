@@ -23,7 +23,12 @@ const UserSchema = new Schema({
         type: String,
         required: true
     },
-    color: String
+    color: String,
+    is_active: {
+        type: Boolean,
+        default: false
+    },
+    activate_link: String
 })
 
 UserSchema.pre('save', function(next) {
@@ -34,6 +39,12 @@ UserSchema.pre('save', function(next) {
         bcrypt.hash(user.password, salt, function(err, hash) {
             if (err) return next(err)
             user.password = hash
+            let res_str = ''
+            let characters = 'QWERTYUIOPASDFGHJKLZXCVBNM_1234567890qwertyuiopasdfghjklzxcvbnm'
+            for (let i = 0; i < 70; i++) {
+                res_str += characters.charAt(Math.floor(Math.random() * characters.length))
+            }
+            user.activate_link = res_str
             next()
         })
     })
