@@ -316,3 +316,68 @@ form label {
     margin-bottom: 5px;
     font-size: 14px;
 }
+#chatUsersTable {
+    width: 95%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    background-color: rgb(194, 255, 252);
+    border-radius: 20px;
+    margin-bottom: 10px;
+}
+#chatUsersTable td {
+    padding: 9px 20px;
+    text-align: center;
+}
+#chatUsersTable th {
+    border-bottom: 2px dashed black;
+    padding: 13px 15px;
+}
+#chatUsersTable th:first-child {
+    border-top-left-radius: 10px;
+}
+#chatUsersTable th:last-child {
+    border-top-right-radius: 10px;
+}
+#chatUsersTable tr:hover {
+    background-color: rgb(111, 255, 248);
+    border-radius: 10px;
+}
+#chatUsersTable thead{
+    background-color: rgb(51, 255, 245);
+    border-radius: 10px;
+}
+#chatUsersDiv {
+    width: 95%;
+    border-top: 1px solid grey;
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+}
+#chatUsersTable select {
+    padding: 8px 10px;
+    border-radius: 10px;
+}
+.hint {
+    display: none;
+    position: absolute;
+    z-index: 9999999;
+    background-color: rgb(233, 233, 233);
+    padding: 10px 5px;
+    border-radius: 7px;
+}
+.hint .btnDel {
+    border: none;
+    padding: 8px 20px;
+    cursor: pointer;
+    width: 100%;
+    margin: 0;
+    background-color: white;
+    font-size: 18px;
+    color: red;
+    border-radius: 6px;
+}
+.hint .btnDel:hover {
+    background-color: rgb(233, 233, 233);
+}

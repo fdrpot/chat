@@ -404,7 +404,8 @@ app.post('/chat/add', checkAuth, async (req, res) => {
         name: req.body.name,
         description: req.body.description,
         users: [req.session.user_id],
-        admins: [req.session.user_id]
+        admins: [req.session.user_id],
+        creator: req.session.user_id
     })
     try {
         await new_chat.save()
@@ -457,7 +458,23 @@ app.get('/chat/:id/edit', checkAuth, async (req, res) => {
     let context = {
         chat_id: chat._id,
         chat_name: chat.name,
-        chat_description: chat.description
+        chat_description: chat.description,
+    }
+    context.chat_users = []
+    let i = 1;
+    for (let usr of chat.users) {
+        let user = await User.findById(usr)
+        context.chat_users.push({
+            number: i,
+            name: user.last_name + ' ' + user.first_name,
+            count_of_messages: (await Message.find({
+                sender: user._id,
+                chat: chat._id,
+            })).length,
+            user_id: user._id,
+            is_admin: Boolean(chat.admins.indexOf(user._id) != -1)
+        })
+        i++
     }
     res.render('edit_chat', context)
 })
@@ -593,6 +610,98 @@ app.get('/chat/:id/view', checkAuth, async (req, res) => {
     })
     
     res.render('view_chat', context)
+})
+
+app.post('/chat/:id/add/admin/:user_id', async (req, res) => {
+    let chat = await Chat.findById(req.params.id)
+    if (chat.admins.indexOf(req.session.user_id) == -1) {
+        return res.end("You're not admin")
+    } else if (chat.users.indexOf(req.params.user_id) == -1) {
+        return res.end("There isn't this user in this chat")
+    }
+    chat.admins.push(req.params.user_id)
+    await chat.save()
+    res.end('ok')
+})
+
+app.post('/chat/:id/delete/admin/:user_id', async (req, res) => {
+    let chat = await Chat.findById(req.params.id)
+    if (chat.admins.indexOf(req.session.user_id) == -1) {
+        req.session.messages = [
+            {
+                type: "error",
+                text: "Вы не являетесь администратором этого чата"
+            }
+        ]
+        return res.end("Error")
+    } else if (chat.admins.indexOf(req.params.user_id) == -1) {
+        req.session.messages = [
+            {
+                type: "error",
+                text: "Такого администратора в чате нет"
+            }
+        ]
+        return res.end("Error")
+    } else if (req.params.user_id == req.session.user_id) {
+        req.session.messages = [
+            {
+                type: "error",
+                text: "Вы не можете удалить из администраторов сами себя"
+            }
+        ]
+        return res.end("Error")
+    } else if (String(chat.creator) != String(req.session.user_id)) {
+        req.session.messages = [
+            {
+                type: "error",
+                text: "Только создатель может забирать права на администрирование чата"
+            }
+        ]
+        return res.end("Error")
+    }
+    chat.admins.splice(chat.admins.indexOf(req.params.user_id), 1)
+    await chat.save()
+    res.end('ok')
+})
+
+app.post('/chat/:id/delete/user/:user_id', async (req, res) => {
+    let chat = await Chat.findById(req.params.id)
+    if (chat.admins.indexOf(req.session.user_id) == -1) {
+        req.session.messages = [
+            {
+                type: "error",
+                text: "Вы не являетесь администратором этого чата"
+            }
+        ]
+        return res.end("Error")
+    } else if (chat.users.indexOf(req.params.user_id) == -1) {
+        req.session.messages = [
+            {
+                type: "error",
+                text: "Такого пользователя в чате нет"
+            }
+        ]
+        return res.end("Error")
+    } else if (req.params.user_id == req.session.user_id) {
+        req.session.messages = [
+            {
+                type: "error",
+                text: "Вы не можете удалить сами себя"
+            }
+        ]
+        return res.end("Error")
+    } else if (String(chat.creator) != String(req.session.user_id) && chat.admins.indexOf(req.params.user_id) != -1) {
+        req.session.messages = [
+            {
+                type: "error",
+                text: "Только создатель может удалить администратора"
+            }
+        ]
+        return res.end("Error")
+    }
+    chat.users.splice(chat.users.indexOf(req.params.user_id), 1)
+    await chat.save()
+    res.end('ok')
 })
 
 app.post('/chat/message/:text', async (req, res) => {

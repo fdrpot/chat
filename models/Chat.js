@@ -14,7 +14,8 @@ const ChatSchema = new Schema({
     admins: {
         type: [ObjectId],
         required: true
-    }
+    },
+    creator: ObjectId
 },{
     timestamps: true
 })

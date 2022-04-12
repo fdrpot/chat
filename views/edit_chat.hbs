@@ -14,3 +14,89 @@
         <input type="submit" value="Добавить">
     </form>
 </div>
+<div class="row-cont" style="justify-content: center;">
+    <div id="chatUsersDiv">
+        <h3 style="text-align: center;">Список участников</h4>
+        <table id="chatUsersTable">
+            <thead>
+                <tr>
+                    <th>#</th><th>Пользователь</th><th>Отправлено сообщений</th><th>Роль</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each chat_users}}
+                <tr class="user-tr" data-id="{{user_id}}" data-chat_id="{{@root.chat_id}}">
+                    <td class="user-td">{{number}}</td><td class="user-td">{{name}}</td><td class="user-td">{{count_of_messages}}</td>
+                    <td class="user-td">
+                        <select id="num{{user_id}}" onchange="processChange(this.value, this.id.substr(3), '{{@root.chat_id}}')">
+                            <option value="user">Участник</option>
+                            <option value="admin" {{#if is_admin}}selected{{/if}}>Администратор</option>
+                        </select>
+                    </td>
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+    </div>
+</div>
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script>
+    function processChange(role, user_id, chat_id){
+        let action
+        if (role == "admin") {
+            action = "add"
+        } else if (role == "user") {
+            action = "delete"
+        }
+        axios.post(`/chat/${chat_id}/${action}/admin/${user_id}`)
+        .then((response) => {
+            if (response.data == "Error") {
+                window.location.reload()
+            }
+        })
+    }
+    let delListener = function processDeleting(event) {
+        let user_id = event.target.dataset.id
+        let chat_id = event.target.dataset.chat_id
+        axios.post(`/chat/${chat_id}/delete/user/${user_id}`)
+        .then((response) => {
+            window.location.reload()
+        }) 
+    }
+</script>
+<script>
+    let hint = document.createElement('div')
+    hint.className = "hint"
+    let button_delete = document.createElement('button')
+    button_delete.className = "btnDel"
+    button_delete.innerText = "Исключить"
+    hint.appendChild(button_delete)
+    document.body.appendChild(hint)
+
+
+    let users = document.getElementsByClassName('user-tr')
+    for (let i = 0; i < users.length; ++i) {
+        users[i].addEventListener('click', function(e) {
+            hint.querySelector('.btnDel').dataset.id = this.dataset.id
+            hint.querySelector('.btnDel').dataset.chat_id = this.dataset.chat_id
+            hint.querySelector('.btnDel').removeEventListener('click', delListener)
+            hint.querySelector('.btnDel').addEventListener('click', delListener)
+            hint.style.display = "inline-block";
+
+            if (e.pageX + hint.offsetWidth < document.offsetWidth) {
+                hint.style.top = e.pageY + 10 + 'px'
+                hint.style.left = e.pageX + 10 + 'px'
+            } else {
+                hint.style.top = e.pageY + 10 + 'px'
+                hint.style.left = e.pageX - hint.offsetWidth - 10 + 'px'
+            }
+        })
+    }
+
+    document.addEventListener('click', function(e) {
+        if (e.target.className.match("user-tr") || e.target.className.match("user-td")) {
+            return
+        }
+        hint.style.display = "none"
+    })
+</script>
